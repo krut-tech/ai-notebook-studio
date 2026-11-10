@@ -11,11 +11,11 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
-<header class="topbar"><div class="brand"><div class="brand-mark">✎</div><div><h1>AI Notebook Studio <span>v2.0</span></h1><p>AI-powered handwritten notebook creator</p></div></div><div class="top-actions"><span class="status-dot">Offline-first workspace</span><button id="pdf" class="primary">↓ Export PDF</button></div></header>
+<header class="topbar"><div class="brand"><div class="brand-mark">✎</div><div><h1>AI Notebook Studio <span>v2.0</span></h1><p>AI-powered handwritten notebook creator</p></div></div><div class="top-actions"><span class="status-dot">Offline-first workspace</span><button id="saveProject">Save project</button><button id="pdf" class="primary">↓ Export PDF</button></div></header>
 <div class="app">
 <aside class="sidebar">
   <button class="new-btn" id="newNotebook">＋ New notebook</button>
-  <nav><a class="active" href="#workspace">⌂ &nbsp; Workspace</a><a href="#handwriting">✎ &nbsp; My handwriting</a><a href="#import">⇧ &nbsp; Import & OCR</a></nav>
+  <nav><a class="active" href="#workspace">⌂ &nbsp; Workspace</a><a href="#projects">▣ &nbsp; My notebooks</a><a href="#handwriting">✎ &nbsp; My handwriting</a><a href="#import">⇧ &nbsp; Import & OCR</a><a href="#ai-tools">✧ &nbsp; Study tools</a></nav>
   <section class="panel"><div class="section-title">Notebook content</div>
     <label><b>Write or paste your text</b><textarea id="txt">Question 1: What is photosynthesis?
 Answer: Photosynthesis is the process by which green plants make food using sunlight, water and carbon dioxide.
@@ -24,7 +24,7 @@ Answer: Photosynthesis is the process by which green plants make food using sunl
 उत्तर: हर शब्द थोड़ा अलग लिखा जाता है, जैसे असली हाथ की लिखावट।</textarea></label>
     <label class="file-btn">↑ Import PDF or TXT<input id="file" type="file" accept=".pdf,.txt,application/pdf,text/plain" hidden></label><p class="sub" id="note" aria-live="polite"></p>
   </section>
-  <section class="panel" id="handwriting"><div class="section-title">Handwriting profile</div>
+  <section class="panel" id="projects"><div class="section-title">My notebooks</div><div class="two-col"><button id="duplicateProject">Duplicate</button><button id="deleteProject" class="quiet">Delete</button></div><label><b>Saved projects</b><select id="projectList"><option value="">No saved projects yet</option></select></label><p class="sub" id="saveStatus" aria-live="polite">Autosave is ready on this device.</p></section>\n  <section class="panel" id="ai-tools"><div class="section-title">Study & writing tools</div><label><b>Tool</b><select id="writingAction"><option value="clean">Clean and format notes</option><option value="summary">Create a short summary</option><option value="points">Extract important points</option><option value="qa">Structure as Q&amp;A</option><option value="outline">Create chapter outline</option></select></label><label><b>Output language</b><select id="outputLanguage"><option value="keep">Keep original language</option><option value="en">English</option><option value="hi">Hindi</option><option value="gu">Gujarati</option></select></label><button id="runWritingTool" class="accent">✧ Apply study tool</button><p class="sub">Offline formatting tools work without an API. Full generative translation and chapter understanding require an AI provider connection, which is not configured in this browser build.</p></section>\n  <section class="panel" id="handwriting"><div class="section-title">Handwriting profile</div>
     <p class="sub">Use a printed character sheet to build a personal handwriting profile. You can scan it with your device camera or upload a photo.</p>
     <div class="button-row"><button id="tpl">↓ Get template</button><button id="camera" class="accent">◎ Scan with camera</button></div>
     <label class="file-btn">↑ Upload handwriting sheet<input id="sheet" type="file" accept="image/*" hidden></label>
@@ -36,7 +36,7 @@ Answer: Photosynthesis is the process by which green plants make food using sunl
     <div class="two-col"><label>Subject<input id="hs" type="text" placeholder="Subject"></label><label>Date<input id="hd" type="text" placeholder="Date"></label></div>
     <label class="check"><input id="uq" type="checkbox" checked> Underline questions</label>
   </section>
-  <section class="panel"><div class="section-title">Writing style</div>
+  <section class="panel"><div class="section-title">Page layout & export</div><div class="two-col"><label><b>Paper size</b><select id="paperSize"><option value="a4">A4</option><option value="a5">A5</option><option value="letter">Letter</option><option value="legal">Legal</option></select></label><label><b>Orientation</b><select id="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label></div><div class="two-col"><label><b>Margin</b><select id="marginPreset"><option value="normal">Normal</option><option value="narrow">Narrow</option><option value="wide">Wide</option></select></label><label><b>Footer</b><select id="footerMode"><option value="none">None</option><option value="page">Page number</option></select></label></div><div class="button-row"><button id="undo">↶ Undo</button><button id="redo">↷ Redo</button></div><div class="button-row"><button id="zoomOut">− Zoom</button><button id="zoomIn">＋ Zoom</button></div><label class="check"><input id="showThumbs" type="checkbox"> Show page thumbnails</label><button id="exportPng">Export first page as PNG</button></section>\n  <section class="panel"><div class="section-title">Writing style</div>
     <label><b>Handwriting font</b><select id="font"><option>Caveat</option><option>Kalam</option><option>Patrick Hand</option><option>Reenie Beanie</option><option>Shadows Into Light</option></select></label>
     <label class="file-btn">＋ Upload TTF / OTF font<input id="ffile" type="file" accept=".ttf,.otf,.woff,.woff2" hidden></label>
     <div class="two-col"><label><b>Ink</b><select id="ink"><option value="#1b3a9e">Blue</option><option value="#1a1a1a">Black</option><option value="#b3261e">Red</option></select></label><label><b>Paper</b><select id="paper"><option value="ruled">Ruled</option><option value="double">Double line</option><option value="graph">Graph</option><option value="plain">Plain</option></select></label></div>
@@ -50,7 +50,7 @@ Answer: Photosynthesis is the process by which green plants make food using sunl
     <label><b>PDF quality</b><select id="q"><option value=".92">High quality</option><option value=".6">Compressed</option></select></label>
   </section>
 </aside>
-<main id="workspace"><div class="workspace-head"><div><h2>Notebook preview</h2><p class="sub">Your changes appear here automatically</p></div><div class="preview-meta"><span id="count">Preparing…</span><span>A4 · Portrait</span></div></div><div id="pages" class="pages"></div></main>
+<main id="workspace"><div class="workspace-head"><div><h2>Notebook preview</h2><p class="sub">Your changes appear here automatically</p></div><div class="preview-meta"><span id="count">Preparing…</span><span>A4 · Portrait</span></div></div><div id="thumbs" class="thumbs" hidden></div><div id="pages" class="pages"></div></main>
 </div>
 <div class="modal" id="cameraModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cameraTitle">
  <div class="modal-card"><div class="modal-head"><div><h2 id="cameraTitle">Scan your handwriting sheet</h2><p class="sub">Place the complete printed template inside the guide</p></div><button id="closeCamera" class="icon-btn" aria-label="Close camera">×</button></div>
