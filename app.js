@@ -261,8 +261,11 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&cameraModal.classLi
 $('switchCamera').addEventListener('click',async()=>{cameraFacing=cameraFacing==='environment'?'user':'environment';await startCamera()});
 $('capture').addEventListener('click',()=>{
   if(!cameraStream||!cameraVideo.videoWidth){$('cameraNote').textContent='Camera is not ready yet. Wait a moment and try again.';return;}
-  const c=document.createElement('canvas');c.width=cameraVideo.videoWidth;c.height=cameraVideo.videoHeight;
-  const ctx=c.getContext('2d');ctx.drawImage(cameraVideo,0,0,c.width,c.height);
+  const c=document.createElement('canvas');c.width=1300;c.height=780;
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  // Crop the centred guide area so desk/background pixels do not enter the glyph grid.
+  const sx=cameraVideo.videoWidth*.09,sy=cameraVideo.videoHeight*.16,sw=cameraVideo.videoWidth*.82,sh=cameraVideo.videoHeight*.68;
+  ctx.drawImage(cameraVideo,sx,sy,sw,sh,0,0,c.width,c.height);
   c.toBlob(async blob=>{
     if(!blob){$('cameraNote').textContent='Could not capture this image. Please try again.';return;}
     try{
