@@ -207,6 +207,17 @@ $('file').addEventListener('change',async e=>{
   }else $('txt').value=await f.text();
   e.target.value='';render();
 });
+$('imgFile').addEventListener('change',async e=>{
+ const f=e.target.files[0];if(!f)return;
+ $('note').textContent='Loading OCR engine…';
+ let worker;
+ try{
+  worker=await Tesseract.createWorker($('ocrLanguage').value,1,{logger:m=>{if(m.status)$('note').textContent=m.status+(m.progress?' · '+Math.round(m.progress*100)+'%':'')}});
+  const result=await worker.recognize(f);
+  $('txt').value=result.data.text.trim();rememberHistory?.();render();$('note').textContent='Image OCR complete. Review and correct the extracted text before exporting.';
+ }catch(err){$('note').textContent='Image OCR failed. Try a clearer image or another OCR language.'}
+ finally{if(worker)await worker.terminate();e.target.value=''}
+});
 $('ffile').addEventListener('change',async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
