@@ -1,57 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#171329">
 <title>AI Notebook Studio</title>
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600&family=Caveat&family=Kalam&family=Patrick+Hand&family=Reenie+Beanie&family=Shadows+Into+Light&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Caveat&family=Kalam&family=Patrick+Hand&family=Reenie+Beanie&family=Shadows+Into+Light&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
+<header class="topbar"><div class="brand"><div class="brand-mark">✎</div><div><h1>AI Notebook Studio <span>v2.0</span></h1><p>AI-powered handwritten notebook creator</p></div></div><div class="top-actions"><span class="status-dot">Offline-first workspace</span><button id="pdf" class="primary">↓ Export PDF</button></div></header>
 <div class="app">
-<aside>
-  <div><h1>AI Notebook Studio</h1><p class="sub">Type or paste text, or open a PDF. Get handwritten, scanned-style notebook pages. Everything runs in your browser.</p></div>
-  <label><b>Your text</b><textarea id="txt">Question 1: What is photosynthesis?
+<aside class="sidebar">
+  <button class="new-btn" id="newNotebook">＋ New notebook</button>
+  <nav><a class="active" href="#workspace">⌂ &nbsp; Workspace</a><a href="#handwriting">✎ &nbsp; My handwriting</a><a href="#import">⇧ &nbsp; Import & OCR</a></nav>
+  <section class="panel"><div class="section-title">Notebook content</div>
+    <label><b>Write or paste your text</b><textarea id="txt">Question 1: What is photosynthesis?
 Answer: Photosynthesis is the process by which green plants make food using sunlight, water and carbon dioxide.
 
 प्रश्न 2: यह हिंदी का एक उदाहरण है।
 उत्तर: हर शब्द थोड़ा अलग लिखा जाता है, जैसे असली हाथ की लिखावट।</textarea></label>
-  <label class="btn" style="cursor:pointer">Open a PDF or .txt file<input id="file" type="file" accept=".pdf,.txt,application/pdf,text/plain" hidden></label>
-  <p class="sub" id="note"></p>
-  <div class="row">
-    <label><b>Handwriting</b><select id="font"><option>Caveat</option><option>Kalam</option><option>Patrick Hand</option><option>Reenie Beanie</option><option>Shadows Into Light</option></select></label>
-    <label class="btn" style="cursor:pointer;align-self:end">Upload TTF/OTF<input id="ffile" type="file" accept=".ttf,.otf,.woff,.woff2" hidden></label>
-  </div>
-  <div class="prof"><b>My handwriting</b>
-  <p class="sub">Print the template, write each character sitting on its grey line with a dark pen, then scan or photograph the sheet, crop it to the outer edge and upload it. Upload more sheets for more variety.</p>
-  <div class="row"><button id="tpl">Get template</button><label class="btn" style="cursor:pointer">Upload sheet<input id="sheet" type="file" accept="image/*" hidden></label></div>
-  <p class="sub" id="pnote">No profile yet.</p><button id="clr">Clear profile</button></div>
-  <div class="prof"><b>Page header</b>
-  <div class="row"><label>Name<input id="hn" type="text"></label><label>Roll no.<input id="hr" type="text"></label></div>
-  <div class="row"><label>Subject<input id="hs" type="text"></label><label>Date<input id="hd" type="text"></label></div>
-  <label class="chk"><input id="uq" type="checkbox" checked> Underline questions</label></div>
-  <div class="row">
-    <label><b>Ink</b><select id="ink"><option value="#1b3a9e">Blue</option><option value="#1a1a1a">Black</option><option value="#b3261e">Red</option></select></label>
-    <label><b>Paper</b><select id="paper"><option value="ruled">Ruled</option><option value="double">Double line</option><option value="graph">Graph</option><option value="plain">Unruled</option></select></label>
-  </div>
-  <label><b>Paper colour</b><input id="pc" type="color" value="#fbfaf4"></label>
-  <label><b>Text size</b><input id="fs" type="range" min="18" max="40" value="27"></label>
-  <label><b>Line spacing</b><input id="lh" type="range" min="28" max="52" value="36"></label>
-  <label><b>Handwriting variation</b><input id="jit" type="range" min="0" max="10" value="4"></label>
-  <label class="chk"><input id="scan" type="checkbox" checked> Scanner effect</label>
-  <label class="chk"><input id="gray" type="checkbox"> Black and white</label>
-  <label><b>Scan noise</b><input id="noise" type="range" min="0" max="30" value="8"></label>
-  <label><b>PDF quality</b><select id="q"><option value=".92">High resolution</option><option value=".6">Compressed</option></select></label>
-  <button id="pdf" class="primary">Export PDF</button>
+    <label class="file-btn">↑ Import PDF or TXT<input id="file" type="file" accept=".pdf,.txt,application/pdf,text/plain" hidden></label><p class="sub" id="note" aria-live="polite"></p>
+  </section>
+  <section class="panel" id="handwriting"><div class="section-title">Handwriting profile</div>
+    <p class="sub">Use a printed character sheet to build a personal handwriting profile. You can scan it with your device camera or upload a photo.</p>
+    <div class="button-row"><button id="tpl">↓ Get template</button><button id="camera" class="accent">◎ Scan with camera</button></div>
+    <label class="file-btn">↑ Upload handwriting sheet<input id="sheet" type="file" accept="image/*" hidden></label>
+    <p id="pnote" class="profile-status" aria-live="polite">No personal handwriting profile yet.</p>
+    <button id="clr" class="quiet">Clear handwriting profile</button>
+  </section>
+  <section class="panel"><div class="section-title">Page details</div>
+    <div class="two-col"><label>Name<input id="hn" type="text" placeholder="Student name"></label><label>Roll no.<input id="hr" type="text" placeholder="Roll number"></label></div>
+    <div class="two-col"><label>Subject<input id="hs" type="text" placeholder="Subject"></label><label>Date<input id="hd" type="text" placeholder="Date"></label></div>
+    <label class="check"><input id="uq" type="checkbox" checked> Underline questions</label>
+  </section>
+  <section class="panel"><div class="section-title">Writing style</div>
+    <label><b>Handwriting font</b><select id="font"><option>Caveat</option><option>Kalam</option><option>Patrick Hand</option><option>Reenie Beanie</option><option>Shadows Into Light</option></select></label>
+    <label class="file-btn">＋ Upload TTF / OTF font<input id="ffile" type="file" accept=".ttf,.otf,.woff,.woff2" hidden></label>
+    <div class="two-col"><label><b>Ink</b><select id="ink"><option value="#1b3a9e">Blue</option><option value="#1a1a1a">Black</option><option value="#b3261e">Red</option></select></label><label><b>Paper</b><select id="paper"><option value="ruled">Ruled</option><option value="double">Double line</option><option value="graph">Graph</option><option value="plain">Plain</option></select></label></div>
+    <label><b>Paper colour</b><input id="pc" type="color" value="#fbfaf4"></label>
+    <label><b>Text size <output id="fsOut">27 px</output></b><input id="fs" type="range" min="18" max="40" value="27"></label>
+    <label><b>Line spacing <output id="lhOut">36 px</output></b><input id="lh" type="range" min="28" max="52" value="36"></label>
+    <label><b>Natural variation <output id="jitOut">4</output></b><input id="jit" type="range" min="0" max="10" value="4"></label>
+    <label class="check"><input id="scan" type="checkbox" checked> Scanned-paper effect</label>
+    <label class="check"><input id="gray" type="checkbox"> Black and white scan</label>
+    <label><b>Scan texture <output id="noiseOut">8</output></b><input id="noise" type="range" min="0" max="30" value="8"></label>
+    <label><b>PDF quality</b><select id="q"><option value=".92">High quality</option><option value=".6">Compressed</option></select></label>
+  </section>
 </aside>
-<main>
-  <div class="bar"><span id="count">Preparing…</span><span>A4 · live preview</span></div>
-  <div id="pages" class="pages"></div>
-</main>
+<main id="workspace"><div class="workspace-head"><div><h2>Notebook preview</h2><p class="sub">Your changes appear here automatically</p></div><div class="preview-meta"><span id="count">Preparing…</span><span>A4 · Portrait</span></div></div><div id="pages" class="pages"></div></main>
+</div>
+<div class="modal" id="cameraModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cameraTitle">
+ <div class="modal-card"><div class="modal-head"><div><h2 id="cameraTitle">Scan your handwriting sheet</h2><p class="sub">Place the complete printed template inside the guide</p></div><button id="closeCamera" class="icon-btn" aria-label="Close camera">×</button></div>
+ <div class="camera-stage"><video id="cameraVideo" autoplay playsinline muted></video><div class="scan-guide"><span>Fit all four edges inside this frame</span></div></div>
+ <p id="cameraNote" class="sub" aria-live="polite">Allow camera access when your browser asks. Good light and a flat sheet give better results.</p>
+ <div class="modal-actions"><button id="switchCamera">↻ Switch camera</button><button id="capture" class="primary">◎ Capture sheet</button></div>
+ </div>
 </div>
 <script src="app.js"></script>
-</body>
-</html>
+</body></html>
