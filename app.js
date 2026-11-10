@@ -39,7 +39,10 @@ function drawPaper(x,o){
     x.strokeStyle='rgba(60,120,180,.3)';
     for(let i=0;i<=W;i+=20){x.beginPath();x.moveTo(i,0);x.lineTo(i,H);x.stroke()}
     for(let j=0;j<=H;j+=20){x.beginPath();x.moveTo(0,j);x.lineTo(W,j);x.stroke()}
-  }else if(o.paper!=='plain'){
+  }else if(o.paper==='dotted'){
+    x.fillStyle='rgba(60,100,160,.45)';
+    for(let i=12;i<W;i+=20)for(let j=12;j<H;j+=20){x.beginPath();x.arc(i,j,1,0,Math.PI*2);x.fill()}
+  }else if(o.paper!=='plain'&&o.paper!=='custom'){
     x.strokeStyle='rgba(70,120,190,.4)';
     for(let y=o.mt+o.lh;y<H-o.mb+o.lh;y+=o.lh){
       x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();
@@ -389,3 +392,20 @@ $('newNotebook').addEventListener('click',()=>{
  currentProject='';$('txt').value='';['hn','hr','hs','hd'].forEach(id=>$(id).value='');rememberHistory();render();$('saveStatus').textContent='New unsaved notebook';
 });
 updatePageDimensions();rememberHistory();refreshProjectList();
+
+$('exportProfile').addEventListener('click',()=>{
+ const data={format:'ai-notebook-studio-profile',version:1,script:$('script').value,glyphs:Object.fromEntries(Object.entries(gl).map(([k,arr])=>[k,arr.map(g=>({image:g.c.toDataURL('image/png'),w:g.w,dy:g.dy}))]))};
+ const blob=new Blob([JSON.stringify(data)],{type:'application/json'});saveFile('my-handwriting-profile.json',blob);
+});
+$('importProfile').addEventListener('change',async e=>{
+ const f=e.target.files[0];if(!f)return;
+ try{
+  const data=JSON.parse(await f.text());if(data.format!=='ai-notebook-studio-profile'||!data.glyphs)throw new Error('Invalid profile');
+  for(const [key,arr] of Object.entries(data.glyphs)){
+   gl[key]=[];
+   for(const item of arr){const im=new Image();im.src=item.image;await im.decode();const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);gl[key].push({c,w:item.w,dy:item.dy})}
+  }
+  saveP();pstat();$('font').value='__mine';render();$('note').textContent='Handwriting profile imported.';
+ }catch(err){$('note').textContent='Could not import this handwriting profile. Check that it is a valid exported profile.'}
+ finally{e.target.value=''}
+});
