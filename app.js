@@ -1,7 +1,7 @@
-const $=id=>document.getElementById(id),W=794,H=1123,S=2;
+const $=id=>document.getElementById(id),S=2;let W=794,H=1123,zoom=1,currentProject='';
 let pages=[],token=0,timer,dl=null;
 const rng=s=>()=>(s=(s*1664525+1013904223)>>>0)/4294967296;
-const opts=()=>({font:$('font').value,mine:$('font').value==='__mine',ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:+$('fs').value,lh:+$('lh').value,jit:+$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:+$('noise').value,uq:$('uq').checked,hdr:[['Name',$('hn').value],['Roll',$('hr').value],['Subject',$('hs').value],['Date',$('hd').value]].filter(a=>a[1].trim()),ml:84,mr:50,mt:80,mb:60});
+const opts=()=>({font:$('font').value,mine:$('font').value==='__mine',ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:+$('fs').value,lh:+$('lh').value,jit:+$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:+$('noise').value,uq:$('uq').checked,hdr:[['Name',$('hn').value],['Roll',$('hr').value],['Subject',$('hs').value],['Date',$('hd').value]].filter(a=>a[1].trim()),ml:$('marginPreset')?.value==='wide'?112:$('marginPreset')?.value==='narrow'?55:84,mr:$('marginPreset')?.value==='wide'?80:$('marginPreset')?.value==='narrow'?35:50,mt:80,mb:60});
 const fnt=o=>`${o.fs}px "${o.font}", cursive, sans-serif`;
 const COLS=13,ROWS=6,CW=100,CH=130,BASEF=.72,CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,?!-()=+:/'%;",gl={};
 const START=/^(q(uestion|ue)?\.?\s*\d*[.:)\-]|ans(wer)?\.?\s*[:.\-)]|प्रश्न|उत्तर|\d{1,3}[.)]\s|\(?[a-d]\)\s|[•*-]\s)/i,QST=/^(q(uestion|ue)?\.?\s*\d|प्रश्न|\d{1,3}[.)]\s)/i;
@@ -289,3 +289,73 @@ $('newNotebook').addEventListener('click',()=>{
   if(!confirm('Start a new notebook? Export or copy your current text first if you need it.'))return;
   $('txt').value='';['hn','hr','hs'].forEach(id=>$(id).value='');$('note').textContent='New notebook started.';render();
 });
+
+
+// Project persistence, history, layout controls and offline study helpers.
+const PROJECTS_KEY='nbs-projects-v1';
+let history=[],historyIndex=-1,historyTimer=null,saveTimer=null;
+function readProjects(){try{return JSON.parse(localStorage.getItem(PROJECTS_KEY)||'[]')}catch(e){return[]}}
+function writeProjects(items){try{localStorage.setItem(PROJECTS_KEY,JSON.stringify(items))}catch(e){$('saveStatus').textContent='Storage is full. Export your work or remove old projects.'}}
+function snapshot(){return {id:currentProject||('nb-'+Date.now()),name:currentProject?((readProjects().find(p=>p.id===currentProject)||{}).name||'My notebook'):'My notebook',text:$('txt').value,details:{name:$('hn').value,roll:$('hr').value,subject:$('hs').value,date:$('hd').value},settings:{font:$('font').value,ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:$('fs').value,lh:$('lh').value,jit:$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:$('noise').value,uq:$('uq').checked,paperSize:$('paperSize').value,orientation:$('orientation').value,marginPreset:$('marginPreset').value,footerMode:$('footerMode').value},updatedAt:Date.now()}}
+function saveProject(show=true){
+  const p=snapshot(),all=readProjects(),idx=all.findIndex(x=>x.id===p.id);
+  if(idx>=0){p.name=all[idx].name;all[idx]=p}else{currentProject=p.id;all.unshift(p)}
+  writeProjects(all.slice(0,50));refreshProjectList();if(show)$('saveStatus').textContent='Saved on this device · '+new Date().toLocaleTimeString();
+}
+function scheduleSave(){clearTimeout(saveTimer);$('saveStatus').textContent='Saving…';saveTimer=setTimeout(()=>saveProject(false),650)}
+function refreshProjectList(){
+ const all=readProjects(),sel=$('projectList'),old=sel.value;sel.replaceChildren(new Option(all.length?'Choose a saved notebook':'No saved projects yet',''));
+ all.forEach(p=>sel.add(new Option(p.name+' · '+new Date(p.updatedAt).toLocaleDateString(),p.id)));
+ if(all.some(p=>p.id===old))sel.value=old;
+}
+function loadProject(id){
+ const p=readProjects().find(x=>x.id===id);if(!p)return;
+ currentProject=p.id;$('txt').value=p.text||'';
+ const d=p.details||{};[['hn','name'],['hr','roll'],['hs','subject'],['hd','date']].forEach(([id,k])=>$(id).value=d[k]||'');
+ const s=p.settings||{};Object.entries(s).forEach(([k,v])=>{const el=$(k);if(el){if(el.type==='checkbox')el.checked=!!v;else el.value=v}});
+ updatePageDimensions();render();$('saveStatus').textContent='Opened '+p.name;
+}
+function rememberHistory(){
+ const value=$('txt').value;if(history[historyIndex]===value)return;
+ history=history.slice(0,historyIndex+1);history.push(value);if(history.length>60)history.shift();historyIndex=history.length-1;
+}
+function applyHistory(i){if(i<0||i>=history.length)return;historyIndex=i;$('txt').value=history[i];render();scheduleSave()}
+function renderThumbs(){
+ const wrap=$('thumbs');if(!wrap)return;wrap.hidden=!$('showThumbs').checked;wrap.replaceChildren();
+ if(wrap.hidden)return;
+ pages.forEach((p,i)=>{const b=document.createElement('button');b.className='thumb';const img=document.createElement('img');img.src=p.toDataURL('image/jpeg',.65);img.alt='Page '+(i+1);const label=document.createElement('span');label.textContent='Page '+(i+1);b.append(img,label);b.onclick=()=>p.scrollIntoView({behavior:'smooth',block:'center'});wrap.append(b)});
+}
+function updatePageDimensions(){
+ const sizes={a4:[794,1123],a5:[559,794],letter:[816,1056],legal:[816,1344]};
+ let [w,h]=sizes[$('paperSize').value]||sizes.a4;if($('orientation').value==='landscape')[w,h]=[h,w];W=w;H=h;
+}
+function runStudyTool(){
+ const text=$('txt').value.trim();if(!text){$('note').textContent='Add or import some text first.';return}
+ const mode=$('writingAction').value;let result=text;
+ const sentences=text.split(/(?<=[.!?।])\s+/).filter(Boolean);
+ if(mode==='clean')result=text.split('\n').map(s=>s.trim().replace(/[ \t]+/g,' ')).join('\n').replace(/\n{3,}/g,'\n\n');
+ if(mode==='summary')result=sentences.slice(0,Math.max(3,Math.ceil(sentences.length*.3))).join(' ');
+ if(mode==='points')result=sentences.filter(s=>/\b(is|are|means|defined|important|because|therefore|include|consist)\b|है|हैं|महत्वपूर्ण|કારણ|છે|મહત્વપૂર્ણ/i.test(s)).map(s=>'• '+s).join('\n')||sentences.slice(0,5).map(s=>'• '+s).join('\n');
+ if(mode==='outline'){const lines=text.split('\n').filter(Boolean);result=lines.map((s,i)=>(/^\s*(chapter|unit|topic|प्रश्न|પ્રશ્ન)/i.test(s)?'## ':'• ')+s).join('\n')}
+ if(mode==='qa'){const lines=text.split('\n').filter(Boolean);result=lines.map((s,i)=>/^\s*(answer|उत्तर|જવાબ)/i.test(s)?'   '+s:(/^\s*(question|प्रश्न|પ્રશ્ન)/i.test(s)?'\n'+s:(i===0?'Question: '+s:'Answer: '+s))).join('\n')}
+ $('txt').value=result;rememberHistory();render();scheduleSave();$('note').textContent='Applied offline '+$('writingAction').selectedOptions[0].text.toLowerCase()+'. Check the result before exporting.';
+}
+$('saveProject').addEventListener('click',()=>{const name=prompt('Notebook name:',(readProjects().find(p=>p.id===currentProject)||{}).name||'My notebook');if(name&&name.trim()){if(!currentProject)currentProject='nb-'+Date.now();saveProject(true);const all=readProjects();const p=all.find(x=>x.id===currentProject);if(p){p.name=name.trim();writeProjects(all);refreshProjectList()}}});
+$('projectList').addEventListener('change',e=>loadProject(e.target.value));
+$('duplicateProject').addEventListener('click',()=>{const p=snapshot();p.id='nb-'+Date.now();p.name=(readProjects().find(x=>x.id===currentProject)?.name||'Notebook')+' copy';currentProject=p.id;const all=readProjects();all.unshift(p);writeProjects(all);refreshProjectList();$('saveStatus').textContent='Notebook duplicated.'});
+$('deleteProject').addEventListener('click',()=>{if(!currentProject)return alert('Save or select a notebook first.');if(!confirm('Delete this saved notebook from this browser?'))return;writeProjects(readProjects().filter(p=>p.id!==currentProject));currentProject='';refreshProjectList();$('saveStatus').textContent='Saved notebook deleted.'});
+$('runWritingTool').addEventListener('click',runStudyTool);
+$('undo').addEventListener('click',()=>applyHistory(historyIndex-1));
+$('redo').addEventListener('click',()=>applyHistory(historyIndex+1));
+$('zoomIn').addEventListener('click',()=>{zoom=Math.min(1.4,zoom+.1);render()});
+$('zoomOut').addEventListener('click',()=>{zoom=Math.max(.5,zoom-.1);render()});
+$('showThumbs').addEventListener('change',renderThumbs);
+$('exportPng').addEventListener('click',()=>{if(!pages.length)return;pages[0].toBlob(b=>saveFile('notebook-page-1.png',b),'image/png')});
+['paperSize','orientation','marginPreset','footerMode'].forEach(id=>$(id).addEventListener('change',()=>{updatePageDimensions();render();scheduleSave()}));
+$('txt').addEventListener('input',()=>{clearTimeout(historyTimer);historyTimer=setTimeout(()=>{rememberHistory();scheduleSave()},500)});
+['hn','hr','hs','hd','font','ink','paper','pc','fs','lh','jit','scan','gray','noise','uq'].forEach(id=>$(id).addEventListener('change',scheduleSave));
+$('newNotebook').addEventListener('click',()=>{
+ if($('txt').value.trim())saveProject(false);
+ currentProject='';$('txt').value='';['hn','hr','hs','hd'].forEach(id=>$(id).value='');rememberHistory();render();$('saveStatus').textContent='New unsaved notebook';
+});
+updatePageDimensions();rememberHistory();refreshProjectList();
