@@ -66,7 +66,7 @@ Open the local server URL in a modern browser. Camera access requires localhost 
 - True AI note generation, translation, configurable provider adapters and secure backend key management
 - Full language support and script-specific handwriting shaping/ligatures
 - Perspective correction, document boundary detection, quality checks and per-character glyph editor
-- Multiple named handwriting profiles, profile backup/import/export
+- Multiple named handwriting profiles and per-character glyph editor
 - IndexedDB storage, robust autosave recovery, version history and project search/tags/folders
 - Multi-file import, page selection, image import, OCR correction editor, tables/columns/equation extraction and worker cancellation/progress
 - Vector/text PDF export where feasible, DPI controls, print preview and PDF metadata
