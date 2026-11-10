@@ -153,7 +153,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 function selectedPages(total){
  const raw=$('pageRange')?.value.trim();
  if(!raw)return Array.from({length:total},(_,i)=>i+1);
- const match=raw.match(/^(\\d+)(?:\\s*-\\s*(\\d+))?$/);
+ const match=raw.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
  if(!match)return Array.from({length:total},(_,i)=>i+1);
  const first=Math.max(1,Math.min(total,Number(match[1])));
  const last=Math.max(first,Math.min(total,Number(match[2]||match[1])));
@@ -164,7 +164,7 @@ async function pdfText(f){
  for(const p of selectedPages(pdf.numPages)){
   const tc=await(await pdf.getPage(p)).getTextContent(),rows=[];
   for(const it of tc.items){if(!it.str.trim())continue;const y=Math.round(it.transform[5]/3);let r=rows.find(r=>Math.abs(r.y-y)<=1);if(!r)rows.push(r={y,a:[]});r.a.push(it)}
-  rows.sort((a,b)=>b.y-a.y).forEach(r=>lines.push(r.a.sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ').replace(/\\s+/g,' ').trim()));
+  rows.sort((a,b)=>b.y-a.y).forEach(r=>lines.push(r.a.sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim()));
  }
  return lines;
 }
