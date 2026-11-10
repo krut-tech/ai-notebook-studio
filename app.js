@@ -225,3 +225,64 @@ $('pdf').addEventListener('click',()=>{
   saveFile('notebook.pdf',doc.output('blob'));
 });
 loadP().then(()=>{pstat();render()});
+
+
+// Camera-based handwriting capture. Camera access requires HTTPS or localhost.
+let cameraStream=null,cameraFacing='environment';
+const cameraModal=$('cameraModal'),cameraVideo=$('cameraVideo');
+function stopCamera(){
+  if(cameraStream){cameraStream.getTracks().forEach(track=>track.stop());cameraStream=null;}
+  cameraVideo.srcObject=null;
+}
+async function startCamera(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    $('cameraNote').textContent='Camera access is unavailable. Open this app on HTTPS or localhost, or upload a photo instead.';return;
+  }
+  stopCamera();
+  try{
+    cameraStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:cameraFacing},width:{ideal:1920},height:{ideal:1080}}});
+    cameraVideo.srcObject=cameraStream;
+    await cameraVideo.play();
+    $('cameraNote').textContent='Keep the full template inside the guide, use bright even light, avoid shadows and hold the phone parallel to the page.';
+  }catch(err){
+    $('cameraNote').textContent=err.name==='NotAllowedError'?'Camera permission was denied. Allow camera access in browser settings, or upload a photo.':'Could not start the camera. Check that another app is not using it, then try again or upload a photo.';
+  }
+}
+function showCamera(){
+  cameraModal.classList.add('open');cameraModal.setAttribute('aria-hidden','false');startCamera();
+}
+function hideCamera(){
+  stopCamera();cameraModal.classList.remove('open');cameraModal.setAttribute('aria-hidden','true');
+}
+$('camera').addEventListener('click',showCamera);
+$('closeCamera').addEventListener('click',hideCamera);
+cameraModal.addEventListener('click',e=>{if(e.target===cameraModal)hideCamera()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&cameraModal.classList.contains('open'))hideCamera()});
+$('switchCamera').addEventListener('click',async()=>{cameraFacing=cameraFacing==='environment'?'user':'environment';await startCamera()});
+$('capture').addEventListener('click',()=>{
+  if(!cameraStream||!cameraVideo.videoWidth){$('cameraNote').textContent='Camera is not ready yet. Wait a moment and try again.';return;}
+  const c=document.createElement('canvas');c.width=cameraVideo.videoWidth;c.height=cameraVideo.videoHeight;
+  const ctx=c.getContext('2d');ctx.drawImage(cameraVideo,0,0,c.width,c.height);
+  c.toBlob(async blob=>{
+    if(!blob){$('cameraNote').textContent='Could not capture this image. Please try again.';return;}
+    try{
+      const file=new File([blob],'camera-handwriting-sheet.jpg',{type:'image/jpeg'});
+      await loadSheet(file);
+      saveP();pstat();$('font').value='__mine';render();
+      const profileName=prompt('Give your handwriting profile a name:','My handwriting');
+      if(profileName&&profileName.trim())try{localStorage.setItem('nbs-profile-name',profileName.trim())}catch(e){}
+      $('cameraNote').textContent='Handwriting sample captured. Review the profile status and preview; add another sheet if you want more character variations.';
+      hideCamera();
+    }catch(err){$('cameraNote').textContent='The image could not be processed. Retake the photo with the complete template visible and better lighting.';}
+  },'image/jpeg',.94);
+});
+window.addEventListener('pagehide',stopCamera);
+
+// Keep numeric controls readable while adjusting.
+[['fs','fsOut',' px'],['lh','lhOut',' px'],['jit','jitOut',''],['noise','noiseOut','']].forEach(([id,out,suffix])=>{
+  const el=$(id),target=$(out);const update=()=>target.textContent=el.value+suffix;el.addEventListener('input',update);update();
+});
+$('newNotebook').addEventListener('click',()=>{
+  if(!confirm('Start a new notebook? Export or copy your current text first if you need it.'))return;
+  $('txt').value='';['hn','hr','hs'].forEach(id=>$(id).value='');$('note').textContent='New notebook started.';render();
+});
