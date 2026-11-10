@@ -3,11 +3,19 @@ let pages=[],token=0,timer,dl=null;
 const rng=s=>()=>(s=(s*1664525+1013904223)>>>0)/4294967296;
 const opts=()=>({font:$('font').value,mine:$('font').value==='__mine',ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:+$('fs').value,lh:+$('lh').value,jit:+$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:+$('noise').value,uq:$('uq').checked,hdr:[['Name',$('hn').value],['Roll',$('hr').value],['Subject',$('hs').value],['Date',$('hd').value]].filter(a=>a[1].trim()),ml:$('marginPreset')?.value==='wide'?112:$('marginPreset')?.value==='narrow'?55:84,mr:$('marginPreset')?.value==='wide'?80:$('marginPreset')?.value==='narrow'?35:50,mt:80,mb:60});
 const fnt=o=>`${o.fs}px "${o.font}", cursive, sans-serif`;
-const COLS=13,ROWS=6,CW=100,CH=130,BASEF=.72,CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,?!-()=+:/'%;",gl={};
+const COLS=13,ROWS=6,CW=100,CH=130,BASEF=.72,gl={};
+const SCRIPT_CHARS={
+ latin:Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,?!-()=+:/;'%"),
+ hindi:Array.from("अआइईउऊऋएऐओऔकखगघचछजझटठडढतथदधनपफबभमयरलवशषसह०१२३४५६७८९।"),
+ gujarati:Array.from("અઆઇઈઉઊઋએઐઓઔકખગઘચછજઝટઠડઢતથદધનપફબભમયરલવશષસહ૦૧૨૩૪૫૬૭૮૯।")
+};
+const scriptChars=()=>SCRIPT_CHARS[$('script')?.value||'latin']||SCRIPT_CHARS.latin;
+const segments=t=>{try{return [...new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(t)].map(x=>x.segment)}catch(e){return [...t]}};
+
 const START=/^(q(uestion|ue)?\.?\s*\d*[.:)\-]|ans(wer)?\.?\s*[:.\-)]|प्रश्न|उत्तर|\d{1,3}[.)]\s|\(?[a-d]\)\s|[•*-]\s)/i,QST=/^(q(uestion|ue)?\.?\s*\d|प्रश्न|\d{1,3}[.)]\s)/i;
 const gScale=o=>o.fs*1.25/CH;
-const canGlyph=t=>[...t].every(c=>gl[c]&&gl[c].length);
-function wordW(m,t,o){return o.mine&&canGlyph(t)?[...t].reduce((a,c)=>a+gl[c][0].w*gScale(o),0):m.measureText(t).width}
+const canGlyph=t=>segments(t).every(c=>gl[c]&&gl[c].length);
+function wordW(m,t,o){return o.mine&&canGlyph(t)?segments(t).reduce((a,c)=>a+gl[c][0].w*gScale(o),0):m.measureText(t).width}
 const spW=(m,o)=>o.mine?o.fs*.32:m.measureText(' ').width;
 
 function layout(m,text,o){
@@ -113,7 +121,7 @@ function scanify(src,o,R){
 async function loadSheet(file){
   const img=await createImageBitmap(file),c=document.createElement('canvas');c.width=COLS*CW;c.height=ROWS*CH;
   const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,c.width,c.height);
-  [...CHARS].forEach((ch,i)=>{
+  scriptChars().forEach((ch,i)=>{
     const cx=i%COLS*CW,cy=Math.floor(i/COLS)*CH,ix=cx+10,iy=cy+26,iw=CW-20,ih=CH-30,d=x.getImageData(ix,iy,iw,ih).data;
     let x0=iw,x1=-1,y0=ih,y1=-1;
     for(let y=0;y<ih;y++)for(let a=0;a<iw;a++){const k=(y*iw+a)*4;if(.3*d[k]+.59*d[k+1]+.11*d[k+2]<130){if(a<x0)x0=a;if(a>x1)x1=a;if(y<y0)y0=y;if(y>y1)y1=y}}
@@ -182,7 +190,7 @@ async function render(){
   $('count').textContent=pages.length+(pages.length===1?' page':' pages');
 }
 const later=()=>{clearTimeout(timer);timer=setTimeout(render,350)};
-['txt','font','ink','paper','pc','fs','lh','jit','scan','gray','noise','hn','hr','hs','hd','uq'].forEach(id=>$(id).addEventListener('input',later));
+['txt','font','ink','paper','pc','fs','lh','jit','scan','gray','noise','hn','hr','hs','hd','uq','script'].forEach(id=>$(id).addEventListener('input',later));
 
 $('file').addEventListener('change',async e=>{
   const f=e.target.files[0];if(!f)return;$('note').textContent='';
@@ -211,7 +219,7 @@ $('tpl').onclick=()=>{
   const c=document.createElement('canvas');c.width=COLS*CW;c.height=ROWS*CH;const x=c.getContext('2d');
   x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.strokeStyle='#bbb';x.fillStyle='#999';x.font='14px sans-serif';
   [...CHARS].forEach((ch,i)=>{const cx=i%COLS*CW,cy=Math.floor(i/COLS)*CH;x.strokeRect(cx+.5,cy+.5,CW,CH);x.fillText(ch,cx+6,cy+17);x.beginPath();x.moveTo(cx+8,cy+CH*BASEF);x.lineTo(cx+CW-8,cy+CH*BASEF);x.stroke()});
-  c.toBlob(b=>saveFile('handwriting-template.png',b));
+  c.toBlob(b=>saveFile('handwriting-template-'+$('script').value+'.png',b));
 };
 $('sheet').addEventListener('change',async e=>{
   const f=e.target.files[0];if(!f)return;
