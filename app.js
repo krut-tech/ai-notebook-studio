@@ -147,27 +147,38 @@ function saveFile(name,blob){
 }
 
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+function selectedPages(total){
+ const raw=$('pageRange')?.value.trim();
+ if(!raw)return Array.from({length:total},(_,i)=>i+1);
+ const match=raw.match(/^(\\d+)(?:\\s*-\\s*(\\d+))?$/);
+ if(!match)return Array.from({length:total},(_,i)=>i+1);
+ const first=Math.max(1,Math.min(total,Number(match[1])));
+ const last=Math.max(first,Math.min(total,Number(match[2]||match[1])));
+ return Array.from({length:last-first+1},(_,i)=>first+i);
+}
 async function pdfText(f){
-  const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,lines=[];
-  for(let p=1;p<=pdf.numPages;p++){
-    const tc=await(await pdf.getPage(p)).getTextContent(),rows=[];
-    for(const it of tc.items){if(!it.str.trim())continue;const y=Math.round(it.transform[5]/3);let r=rows.find(r=>Math.abs(r.y-y)<=1);if(!r)rows.push(r={y,a:[]});r.a.push(it)}
-    rows.sort((a,b)=>b.y-a.y).forEach(r=>lines.push(r.a.sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim()));
-  }
-  return lines;
+ const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,lines=[];
+ for(const p of selectedPages(pdf.numPages)){
+  const tc=await(await pdf.getPage(p)).getTextContent(),rows=[];
+  for(const it of tc.items){if(!it.str.trim())continue;const y=Math.round(it.transform[5]/3);let r=rows.find(r=>Math.abs(r.y-y)<=1);if(!r)rows.push(r={y,a:[]});r.a.push(it)}
+  rows.sort((a,b)=>b.y-a.y).forEach(r=>lines.push(r.a.sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ').replace(/\\s+/g,' ').trim()));
+ }
+ return lines;
 }
 async function ocrPdf(f){
-  const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,out=[];
-  $('note').textContent='Loading OCR engine and language data (first time only)…';
-  const w=await Tesseract.createWorker('eng+hin+guj');
-  for(let p=1;p<=pdf.numPages;p++){
-    $('note').textContent='OCR: page '+p+' of '+pdf.numPages+'…';
-    const pg=await pdf.getPage(p),vp=pg.getViewport({scale:2}),c=document.createElement('canvas');
-    c.width=vp.width;c.height=vp.height;
-    await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
-    const r=await w.recognize(c);out.push(...r.data.text.split('\n').map(s=>s.trim()));
+ const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,out=[];
+ $('note').textContent='Loading OCR engine and language data (first time only)…';
+ const w=await Tesseract.createWorker($('ocrLanguage')?.value||'eng+hin+guj');
+ try{
+  for(const p of selectedPages(pdf.numPages)){
+   $('note').textContent='OCR: page '+p+' of '+pdf.numPages+'…';
+   const pg=await pdf.getPage(p),vp=pg.getViewport({scale:2}),c=document.createElement('canvas');
+   c.width=vp.width;c.height=vp.height;
+   await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+   const r=await w.recognize(c);out.push(...r.data.text.split('\\n').map(s=>s.trim()));
   }
-  await w.terminate();return out;
+  return out;
+ }finally{await w.terminate()}
 }
 function blocks(lines){
   const out=[];
