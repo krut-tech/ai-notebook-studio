@@ -55,7 +55,7 @@ function drawPaper(x,o){
 
 function drawGlyphs(x,t,o,R){
   let px=0;const s=gScale(o);
-  for(const ch of t){
+  for(const ch of segments(t)){
     const v=gl[ch],g=v[Math.floor(R()*v.length)],k=s*(1+(R()-.5)*o.jit*.02);
     if(g.ti!==o.ink){const c=document.createElement('canvas');c.width=g.c.width;c.height=g.c.height;const q=c.getContext('2d');q.fillStyle=o.ink;q.fillRect(0,0,c.width,c.height);q.globalCompositeOperation='destination-in';q.drawImage(g.c,0,0);g.t=c;g.ti=o.ink}
     x.drawImage(g.t,px,(g.dy-g.c.height)*k+(R()-.5)*o.jit*.5,g.c.width*k,g.c.height*k);
