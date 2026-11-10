@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id),W=794,H=1123,S=2;
 let pages=[],token=0,timer,dl=null;
 const rng=s=>()=>(s=(s*1664525+1013904223)>>>0)/4294967296;
-const opts=()=>({font:$('font').value,mine:$('font').value==='__mine',ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:+$('fs').value,lh:+$('lh').value,jit:+$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:+$('noise').value,uq:$('uq').checked,hdr:[['Name',$('hn').value],['Roll',$('hr').value],['Subject',$('hs').value],['Date',$('hd').value]].filter(a=>a[1].trim()),ml:84,mr:50,mt:90,mb:60});
+const opts=()=>({font:$('font').value,mine:$('font').value==='__mine',ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:+$('fs').value,lh:+$('lh').value,jit:+$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:+$('noise').value,uq:$('uq').checked,hdr:[['Name',$('hn').value],['Roll',$('hr').value],['Subject',$('hs').value],['Date',$('hd').value]].filter(a=>a[1].trim()),ml:84,mr:50,mt:80,mb:60});
 const fnt=o=>`${o.fs}px "${o.font}", cursive, sans-serif`;
 const COLS=13,ROWS=6,CW=100,CH=130,BASEF=.72,CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,?!-()=+:/'%;",gl={};
 const START=/^(q(uestion|ue)?\.?\s*\d*[.:)\-]|ans(wer)?\.?\s*[:.\-)]|प्रश्न|उत्तर|\d{1,3}[.)]\s|\(?[a-d]\)\s|[•*-]\s)/i,QST=/^(q(uestion|ue)?\.?\s*\d|प्रश्न|\d{1,3}[.)]\s)/i;
@@ -52,9 +52,25 @@ function drawGlyphs(x,t,o,R){
   }
 }
 
+function drawHeader(x,o,n){
+  const hv=k=>(o.hdr.find(a=>a[0]===k)||['',''])[1];
+  x.save();
+  x.strokeStyle='rgba(200,60,60,.6)';x.lineWidth=1.2;
+  x.beginPath();x.moveTo(0,o.mt);x.lineTo(W,o.mt);x.stroke();
+  x.lineWidth=.8;x.beginPath();x.moveTo(W-195,36);x.lineTo(W-40,36);x.moveTo(W-195,64);x.lineTo(W-40,64);x.stroke();
+  x.fillStyle='rgba(200,60,60,.85)';x.font='13px Figtree, sans-serif';
+  x.fillText('Date',W-232,34);x.fillText('Page',W-232,62);
+  x.restore();
+  x.save();x.globalAlpha=.88;x.fillStyle=o.ink;x.font=`22px "${o.font}", cursive`;
+  x.fillText(hv('Date'),W-190,32);x.fillText(String(n),W-190,60);
+  const l1=[hv('Name')&&'Name: '+hv('Name'),hv('Roll')&&'Roll: '+hv('Roll')].filter(Boolean).join('    ');
+  x.fillText(l1,o.ml,34);x.fillText(hv('Subject'),o.ml,62);
+  x.restore();
+}
+
 function drawPage(lines,o,R,n){
   const c=document.createElement('canvas');c.width=W*S;c.height=H*S;
-  const x=c.getContext('2d');x.scale(S,S);drawPaper(x,o);
+  const x=c.getContext('2d');x.scale(S,S);drawPaper(x,o);drawHeader(x,o,n);
   x.font=fnt(o);x.fillStyle=o.ink;x.textBaseline='alphabetic';
   const sp=spW(x,o),j=o.jit;
   lines.forEach((ln,i)=>{
@@ -70,10 +86,6 @@ function drawPage(lines,o,R,n){
     }
     if(ln.q&&o.uq&&ln.length){x.save();x.globalAlpha=.75;x.strokeStyle=o.ink;x.lineWidth=1.4;x.beginPath();x.moveTo(sx,base+5);x.lineTo(px-sp,base+5+(R()-.5)*2);x.stroke();x.restore()}
   });
-  x.save();x.globalAlpha=.85;x.font=`22px "${o.font}", cursive`;
-  let hx=o.ml;for(const [k,v] of o.hdr){const s=k+': '+v;x.fillText(s,hx,56);hx+=x.measureText(s).width+26}
-  x.restore();
-  x.globalAlpha=.8;x.font=`20px "${o.font}", cursive`;x.fillText(String(n),W-70,H-34);
   return c;
 }
 
