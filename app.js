@@ -218,7 +218,7 @@ $('ffile').addEventListener('change',async e=>{
 $('tpl').onclick=()=>{
   const c=document.createElement('canvas');c.width=COLS*CW;c.height=ROWS*CH;const x=c.getContext('2d');
   x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.strokeStyle='#bbb';x.fillStyle='#999';x.font='14px sans-serif';
-  [...CHARS].forEach((ch,i)=>{const cx=i%COLS*CW,cy=Math.floor(i/COLS)*CH;x.strokeRect(cx+.5,cy+.5,CW,CH);x.fillText(ch,cx+6,cy+17);x.beginPath();x.moveTo(cx+8,cy+CH*BASEF);x.lineTo(cx+CW-8,cy+CH*BASEF);x.stroke()});
+  scriptChars().forEach((ch,i)=>{const cx=i%COLS*CW,cy=Math.floor(i/COLS)*CH;x.strokeRect(cx+.5,cy+.5,CW,CH);x.fillText(ch,cx+6,cy+17);x.beginPath();x.moveTo(cx+8,cy+CH*BASEF);x.lineTo(cx+CW-8,cy+CH*BASEF);x.stroke()});
   c.toBlob(b=>saveFile('handwriting-template-'+$('script').value+'.png',b));
 };
 $('sheet').addEventListener('change',async e=>{
