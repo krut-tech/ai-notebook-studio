@@ -1,8 +1,10 @@
 const $=id=>document.getElementById(id),S=2;let W=794,H=1123,zoom=1,currentProject='';
-let pages=[],token=0,timer,dl=null;
+let pages=[],pageTexts=[],token=0,timer,dl=null;
 const rng=s=>()=>(s=(s*1664525+1013904223)>>>0)/4294967296;
-const opts=()=>({font:$('font').value,mine:$('font').value==='__mine',ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:+$('fs').value,lh:+$('lh').value,jit:+$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:+$('noise').value,uq:$('uq').checked,footer:$('footerMode')?.value||'none',header:$('headerToggle')?$('headerToggle').checked:true,hdr:[['Name',$('hn').value],['Roll',$('hr').value],['Subject',$('hs').value],['Date',$('hd').value]].filter(a=>a[1].trim()),ml:$('marginPreset')?.value==='wide'?112:$('marginPreset')?.value==='narrow'?55:84,mr:$('marginPreset')?.value==='wide'?80:$('marginPreset')?.value==='narrow'?35:50,mt:$('headerToggle')&&!$('headerToggle').checked?36:80,mb:60});
-const fnt=o=>`${o.fs}px "${o.font}", cursive, sans-serif`;
+const opts=()=>({font:$('font').value,mine:$('font').value==='__mine',ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:+$('fs').value,lh:+$('lh').value,jit:+$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:+$('noise').value,uq:$('uq').checked,hl:$('hlToggle')?$('hlToggle').checked:true,footer:$('footerMode')?.value||'none',header:$('headerToggle')?$('headerToggle').checked:true,hdr:[['Name',$('hn').value],['Roll',$('hr').value],['Subject',$('hs').value],['Date',$('hd').value]].filter(a=>a[1].trim()),ml:$('marginPreset')?.value==='wide'?112:$('marginPreset')?.value==='narrow'?55:84,mr:$('marginPreset')?.value==='wide'?80:$('marginPreset')?.value==='narrow'?35:50,mt:$('headerToggle')&&!$('headerToggle').checked?36:80,mb:60});
+// Caveat has no Devanagari/Gujarati glyphs, so fall back to Kalam (Hindi) and Baloo Bhai 2 (Gujarati) before generic fonts.
+const fnt=o=>`${o.fs}px "${o.font}", "Kalam", "Baloo Bhai 2", cursive, sans-serif`;
+const hfs=(o,h)=>Math.round(o.fs*(h===1?1.25:1.1));
 const COLS=13,ROWS=6,CW=100,CH=130,BASEF=.72,gl={};
 const SCRIPT_CHARS={
  latin:Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,?!-()=+:/;'%"),
@@ -20,18 +22,23 @@ const canGlyph=t=>segments(t).every(c=>gl[c]&&gl[c].length);
 function wordW(m,t,o){return o.mine&&canGlyph(t)?segments(t).reduce((a,c)=>a+gl[c][0].w*gScale(o),0):m.measureText(t).width}
 const spW=(m,o)=>o.mine?o.fs*.32:m.measureText(' ').width;
 
+// Lines starting with "# " or "## " are headings: larger text, optional highlighter.
 function layout(m,text,o){
-  const maxW=W-o.ml-o.mr,sp=spW(m,o),out=[];
-  for(const para of text.replace(/\r/g,'').split('\n')){
-    if(!para.trim()){out.push([]);continue}
-    const first=out.length;let cur=[],w=0;
+  const maxW=W-o.ml-o.mr,out=[];
+  for(const raw of text.replace(/\r/g,'').split('\n')){
+    if(!raw.trim()){out.push([]);continue}
+    const hm=raw.match(/^\s*(#{1,2})\s+(.*)$/),para=hm?hm[2]:raw,h=hm?hm[1].length:0,oh=h?{...o,fs:hfs(o,h)}:o;
+    m.font=fnt(oh);
+    const sp=spW(m,oh),first=out.length;let cur=[],w=0;
     for(const t of para.split(/\s+/).filter(Boolean)){
-      const ww=wordW(m,t,o);
+      const ww=wordW(m,t,oh);
       if(cur.length&&w+sp+ww>maxW){out.push(cur);cur=[];w=0}
       cur.push({t,w:ww});w+=(cur.length>1?sp:0)+ww;
     }
     out.push(cur);out[first].q=QST.test(para.trim());
+    if(h)for(let i=first;i<out.length;i++)out[i].h=h;
   }
+  m.font=fnt(o);
   return out;
 }
 
@@ -74,7 +81,7 @@ function drawHeader(x,o,n){
   x.fillStyle='rgba(200,60,60,.85)';x.font='13px Figtree, sans-serif';
   x.fillText('Date',W-232,34);x.fillText('Page',W-232,62);
   x.restore();
-  x.save();x.globalAlpha=.88;x.fillStyle=o.ink;x.font=`22px "${o.font}", cursive`;
+  x.save();x.globalAlpha=.88;x.fillStyle=o.ink;x.font=`22px "${o.font}", "Kalam", "Baloo Bhai 2", cursive`;
   x.fillText(hv('Date'),W-190,32);x.fillText(String(n),W-190,60);
   const l1=[hv('Name')&&'Name: '+hv('Name'),hv('Roll')&&'Roll: '+hv('Roll')].filter(Boolean).join('    ');
   x.fillText(l1,o.ml,34);x.fillText(hv('Subject'),o.ml,62);
@@ -83,23 +90,31 @@ function drawHeader(x,o,n){
 
 function drawFooter(x,o,n){
   if(o.footer!=='page')return;
-  x.save();x.globalAlpha=.85;x.fillStyle=o.ink;x.font=`20px "${o.font}", cursive`;x.textAlign='center';
+  x.save();x.globalAlpha=.85;x.fillStyle=o.ink;x.font=`20px "${o.font}", "Kalam", cursive`;x.textAlign='center';
   x.fillText('\u2013 '+n+' \u2013',W/2,H-22);x.restore();
 }
 
 function drawPage(lines,o,R,n){
   const c=document.createElement('canvas');c.width=W*S;c.height=H*S;
   const x=c.getContext('2d');x.scale(S,S);drawPaper(x,o);if(o.header)drawHeader(x,o,n);drawFooter(x,o,n);
-  x.font=fnt(o);x.fillStyle=o.ink;x.textBaseline='alphabetic';
-  const sp=spW(x,o),j=o.jit;
+  x.fillStyle=o.ink;x.textBaseline='alphabetic';
+  const j=o.jit;
   lines.forEach((ln,i)=>{
+    const lo=ln.h?{...o,fs:hfs(o,ln.h)}:o;
+    x.font=fnt(lo);
+    const sp=spW(x,lo);
     let px=o.ml+(R()-.5)*j,base=o.mt+(i+1)*o.lh-7,sx=px;
+    if(ln.h&&o.hl&&ln.length){
+      const lw=ln.reduce((a,w)=>a+w.w,0)+sp*(ln.length-1);
+      x.save();x.globalCompositeOperation='multiply';x.fillStyle='rgba(255,130,180,.38)';x.fillRect(sx-4,base-lo.fs*.82,lw+10,lo.fs*1.02);x.restore();
+    }
     for(const w of ln){
       x.save();
+      x.shadowColor=o.ink;x.shadowBlur=.6;
       x.translate(px,base+(R()-.5)*j*.7);
       x.rotate((R()-.5)*j*.012);
       x.globalAlpha=.82+R()*.18;
-      if(o.mine&&canGlyph(w.t))drawGlyphs(x,w.t,o,R);else x.fillText(w.t,0,0);
+      if(o.mine&&canGlyph(w.t))drawGlyphs(x,w.t,lo,R);else x.fillText(w.t,0,0);
       x.restore();
       px+=w.w+sp*(1+(R()-.5)*j*.06);
     }
@@ -220,9 +235,10 @@ async function render(){
   if(my!==token)return;
   const m=document.createElement('canvas').getContext('2d');m.font=fnt(o);
   const lines=layout(m,text,o),per=Math.max(1,Math.floor((H-o.mt-o.mb)/o.lh)),R=rng(42);
-  pages=[];
+  pages=[];pageTexts=[];
   for(let i=0;i<Math.max(1,lines.length);i+=per){
-    const p=drawPage(lines.slice(i,i+per),o,R,pages.length+1);
+    const chunk=lines.slice(i,i+per),p=drawPage(chunk,o,R,pages.length+1);
+    pageTexts.push(chunk.map(l=>l.map(w=>w.t).join(' ')).join('\n'));
     pages.push(o.scan?scanify(p,o,R):p);
   }
   $('pages').replaceChildren(...pages);
@@ -288,7 +304,19 @@ $('pdf').addEventListener('click',()=>{
   const {jsPDF}=window.jspdf,q=+$('q').value;
   let [pw,ph]=PDF_MM[$('paperSize').value]||PDF_MM.a4;if($('orientation').value==='landscape')[pw,ph]=[ph,pw];
   const doc=new jsPDF({unit:'mm',format:[Math.min(pw,ph),Math.max(pw,ph)],orientation:pw>ph?'landscape':'portrait'});
-  pages.forEach((c,i)=>{if(i)doc.addPage();doc.addImage(c.toDataURL('image/jpeg',q),'JPEG',0,0,pw,ph,undefined,'FAST')});
+  pages.forEach((c,i)=>{
+    if(i)doc.addPage();
+    doc.addImage(c.toDataURL('image/jpeg',q),'JPEG',0,0,pw,ph,undefined,'FAST');
+    // Invisible text layer so the PDF is searchable (English/ASCII text only; standard PDF fonts cannot encode Hindi/Gujarati).
+    const tx=pageTexts[i]||'';
+    if($('searchable')&&$('searchable').checked&&tx&&/^[\x20-\x7E\n]+$/.test(tx)){
+      try{
+        const lh=+$('lh').value,mt=$('headerToggle').checked?80:36;
+        doc.setFontSize((lh/H)*ph*2.83465/1.15);
+        doc.text(tx.split('\n'),(84/W)*pw,((mt+lh*.8)/H)*ph,{renderingMode:'invisible'});
+      }catch(e){}
+    }
+  });
   saveFile('notebook.pdf',doc.output('blob'));
 });
 loadP().then(()=>{pstat();render()});
@@ -359,7 +387,7 @@ const PROJECTS_KEY='nbs-projects-v1';
 let history=[],historyIndex=-1,historyTimer=null,saveTimer=null;
 function readProjects(){try{return JSON.parse(localStorage.getItem(PROJECTS_KEY)||'[]')}catch(e){return[]}}
 function writeProjects(items){try{localStorage.setItem(PROJECTS_KEY,JSON.stringify(items))}catch(e){$('saveStatus').textContent='Storage is full. Export your work or remove old projects.'}}
-function snapshot(){return {id:currentProject||('nb-'+Date.now()),name:currentProject?((readProjects().find(p=>p.id===currentProject)||{}).name||'My notebook'):'My notebook',text:$('txt').value,details:{name:$('hn').value,roll:$('hr').value,subject:$('hs').value,date:$('hd').value},settings:{font:$('font').value,ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:$('fs').value,lh:$('lh').value,jit:$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:$('noise').value,uq:$('uq').checked,paperSize:$('paperSize').value,orientation:$('orientation').value,marginPreset:$('marginPreset').value,footerMode:$('footerMode').value,headerToggle:$('headerToggle').checked},updatedAt:Date.now()}}
+function snapshot(){return {id:currentProject||('nb-'+Date.now()),name:currentProject?((readProjects().find(p=>p.id===currentProject)||{}).name||'My notebook'):'My notebook',text:$('txt').value,details:{name:$('hn').value,roll:$('hr').value,subject:$('hs').value,date:$('hd').value},settings:{font:$('font').value,ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:$('fs').value,lh:$('lh').value,jit:$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:$('noise').value,uq:$('uq').checked,paperSize:$('paperSize').value,orientation:$('orientation').value,marginPreset:$('marginPreset').value,footerMode:$('footerMode').value,headerToggle:$('headerToggle').checked,hlToggle:$('hlToggle').checked,searchable:$('searchable').checked},updatedAt:Date.now()}}
 function saveProject(show=true){
   const p=snapshot(),all=readProjects(),idx=all.findIndex(x=>x.id===p.id);
   if(idx>=0){p.name=all[idx].name;all[idx]=p}else{currentProject=p.id;all.unshift(p)}
@@ -371,7 +399,7 @@ function refreshProjectList(){
  all.forEach(p=>sel.add(new Option(p.name+' · '+new Date(p.updatedAt).toLocaleDateString(),p.id)));
  if(all.some(p=>p.id===old))sel.value=old;
 }
-const SETTING_TYPES={font:'select',ink:'select',paper:'select',pc:'color',fs:'range',lh:'range',jit:'range',scan:'check',gray:'check',noise:'range',uq:'check',paperSize:'select',orientation:'select',marginPreset:'select',footerMode:'select',headerToggle:'check'};
+const SETTING_TYPES={font:'select',ink:'select',paper:'select',pc:'color',fs:'range',lh:'range',jit:'range',scan:'check',gray:'check',noise:'range',uq:'check',paperSize:'select',orientation:'select',marginPreset:'select',footerMode:'select',headerToggle:'check',hlToggle:'check',searchable:'check'};
 function applySetting(k,v){
  if(!Object.prototype.hasOwnProperty.call(SETTING_TYPES,k))return;
  const el=$(k),kind=SETTING_TYPES[k];if(!el)return;
