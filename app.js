@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id),S=2;let W=794,H=1123,zoom=1,currentProject='';
 let pages=[],token=0,timer,dl=null;
 const rng=s=>()=>(s=(s*1664525+1013904223)>>>0)/4294967296;
-const opts=()=>({font:$('font').value,mine:$('font').value==='__mine',ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:+$('fs').value,lh:+$('lh').value,jit:+$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:+$('noise').value,uq:$('uq').checked,hdr:[['Name',$('hn').value],['Roll',$('hr').value],['Subject',$('hs').value],['Date',$('hd').value]].filter(a=>a[1].trim()),ml:$('marginPreset')?.value==='wide'?112:$('marginPreset')?.value==='narrow'?55:84,mr:$('marginPreset')?.value==='wide'?80:$('marginPreset')?.value==='narrow'?35:50,mt:80,mb:60});
+const opts=()=>({font:$('font').value,mine:$('font').value==='__mine',ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:+$('fs').value,lh:+$('lh').value,jit:+$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:+$('noise').value,uq:$('uq').checked,footer:$('footerMode')?.value||'none',header:$('headerToggle')?$('headerToggle').checked:true,hdr:[['Name',$('hn').value],['Roll',$('hr').value],['Subject',$('hs').value],['Date',$('hd').value]].filter(a=>a[1].trim()),ml:$('marginPreset')?.value==='wide'?112:$('marginPreset')?.value==='narrow'?55:84,mr:$('marginPreset')?.value==='wide'?80:$('marginPreset')?.value==='narrow'?35:50,mt:$('headerToggle')&&!$('headerToggle').checked?36:80,mb:60});
 const fnt=o=>`${o.fs}px "${o.font}", cursive, sans-serif`;
 const COLS=13,ROWS=6,CW=100,CH=130,BASEF=.72,gl={};
 const SCRIPT_CHARS={
@@ -9,6 +9,8 @@ const SCRIPT_CHARS={
  hindi:Array.from("अआइईउऊऋएऐओऔकखगघचछजझटठडढतथदधनपफबभमयरलवशषसह०१२३४५६७८९।"),
  gujarati:Array.from("અઆઇઈઉઊઋએઐઓઔકખગઘચછજઝટઠડઢતથદધનપફબભમયરલવશષસહ૦૧૨૩૪૫૬૭૮૯।")
 };
+const SCRIPT_NAMES={latin:'English',hindi:'Hindi',gujarati:'Gujarati'};
+const GLYPH_KEYS=new Set(Object.values(SCRIPT_CHARS).flat());
 const scriptChars=()=>SCRIPT_CHARS[$('script')?.value||'latin']||SCRIPT_CHARS.latin;
 const segments=t=>{try{return [...new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(t)].map(x=>x.segment)}catch(e){return [...t]}};
 
@@ -79,9 +81,15 @@ function drawHeader(x,o,n){
   x.restore();
 }
 
+function drawFooter(x,o,n){
+  if(o.footer!=='page')return;
+  x.save();x.globalAlpha=.85;x.fillStyle=o.ink;x.font=`20px "${o.font}", cursive`;x.textAlign='center';
+  x.fillText('\u2013 '+n+' \u2013',W/2,H-22);x.restore();
+}
+
 function drawPage(lines,o,R,n){
   const c=document.createElement('canvas');c.width=W*S;c.height=H*S;
-  const x=c.getContext('2d');x.scale(S,S);drawPaper(x,o);drawHeader(x,o,n);
+  const x=c.getContext('2d');x.scale(S,S);drawPaper(x,o);if(o.header)drawHeader(x,o,n);drawFooter(x,o,n);
   x.font=fnt(o);x.fillStyle=o.ink;x.textBaseline='alphabetic';
   const sp=spW(x,o),j=o.jit;
   lines.forEach((ln,i)=>{
@@ -137,10 +145,27 @@ async function loadSheet(file){
   });
 }
 const saveP=()=>{try{localStorage.setItem('nbs-prof',JSON.stringify(Object.fromEntries(Object.entries(gl).map(([k,v])=>[k,v.map(g=>({u:g.c.toDataURL(),w:g.w,dy:g.dy}))]))))}catch(e){}};
-async function loadP(){try{const s=JSON.parse(localStorage.getItem('nbs-prof')||'null');if(!s)return;for(const k in s)gl[k]=await Promise.all(s[k].map(async o=>{const im=new Image();im.src=o.u;await im.decode();const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);return{c,w:o.w,dy:o.dy}}))}catch(e){}}
+const PNG_URL=/^data:image\/png;base64,[A-Za-z0-9+\/]+={0,2}$/;
+async function glyphFrom(src,w,dy){
+  if(typeof src!=='string'||src.length>200000||!PNG_URL.test(src)||!Number.isFinite(w)||!Number.isFinite(dy))throw new Error('Invalid glyph');
+  const im=new Image();im.src=src;await im.decode();
+  if(!im.width||!im.height||im.width>300||im.height>300)throw new Error('Invalid glyph size');
+  const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);
+  return{c,w,dy};
+}
+async function loadP(){
+  try{
+    const s=JSON.parse(localStorage.getItem('nbs-prof')||'null');if(!s||typeof s!=='object')return;
+    for(const k of Object.keys(s)){
+      if(!GLYPH_KEYS.has(k)||!Array.isArray(s[k]))continue;
+      try{const arr=await Promise.all(s[k].slice(0,30).map(o=>glyphFrom(o&&o.u,o&&o.w,o&&o.dy)));if(arr.length)gl[k]=arr}catch(e){}
+    }
+  }catch(e){}
+}
 function pstat(){
   const n=Object.keys(gl).length,v=Math.max(0,...Object.values(gl).map(a=>a.length)),has=[...$('font').options].some(o=>o.value==='__mine');
-  $('pnote').textContent=n?n+' characters captured, up to '+v+' variants each. Only English letters, digits and basic punctuation are covered; other scripts use the selected font.':'No profile yet.';
+  const parts=Object.entries(SCRIPT_CHARS).map(([k,chars])=>[SCRIPT_NAMES[k],chars.filter(c=>gl[c]&&gl[c].length).length]).filter(a=>a[1]).map(a=>a[0]+' '+a[1]);
+  $('pnote').textContent=n?n+' characters captured ('+parts.join(', ')+'), up to '+v+' variants each. Anything not captured uses the selected font.':'No personal handwriting profile yet.';
   if(n&&!has)$('font').add(new Option('My handwriting','__mine'));
   if(!n){[...$('font').options].forEach(o=>{if(o.value==='__mine')o.remove()});if($('font').value==='__mine')$('font').value='Caveat'}
 }
@@ -178,7 +203,7 @@ async function ocrPdf(f){
    const pg=await pdf.getPage(p),vp=pg.getViewport({scale:2}),c=document.createElement('canvas');
    c.width=vp.width;c.height=vp.height;
    await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
-   const r=await w.recognize(c);out.push(...r.data.text.split('\\n').map(s=>s.trim()));
+   const r=await w.recognize(c);out.push(...r.data.text.split(/\r?\n/).map(s=>s.trim()));
   }
   return out;
  }finally{await w.terminate()}
@@ -202,6 +227,11 @@ async function render(){
   }
   $('pages').replaceChildren(...pages);
   $('count').textContent=pages.length+(pages.length===1?' page':' pages');
+  applyZoom();renderThumbs();
+}
+function applyZoom(){
+  const avail=Math.max(240,$('pages').clientWidth-60),fit=Math.min(Math.round(W*760/794),avail),w=Math.round(fit*zoom);
+  pages.forEach(c=>{c.style.width=w+'px'});updateMeta();
 }
 const later=()=>{clearTimeout(timer);timer=setTimeout(render,350)};
 ['txt','font','ink','paper','pc','fs','lh','jit','scan','gray','noise','hn','hr','hs','hd','uq','script'].forEach(id=>$(id).addEventListener('input',later));
@@ -252,9 +282,13 @@ $('sheet').addEventListener('change',async e=>{
   e.target.value='';
 });
 $('clr').onclick=()=>{for(const k in gl)delete gl[k];try{localStorage.removeItem('nbs-prof')}catch(e){}pstat();render()};
+const PDF_MM={a4:[210,297],a5:[148,210],letter:[215.9,279.4],legal:[215.9,355.6]};
 $('pdf').addEventListener('click',()=>{
-  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:'mm',format:'a4'}),q=+$('q').value;
-  pages.forEach((c,i)=>{if(i)doc.addPage();doc.addImage(c.toDataURL('image/jpeg',q),'JPEG',0,0,210,297,undefined,'FAST')});
+  if(!pages.length)return;
+  const {jsPDF}=window.jspdf,q=+$('q').value;
+  let [pw,ph]=PDF_MM[$('paperSize').value]||PDF_MM.a4;if($('orientation').value==='landscape')[pw,ph]=[ph,pw];
+  const doc=new jsPDF({unit:'mm',format:[Math.min(pw,ph),Math.max(pw,ph)],orientation:pw>ph?'landscape':'portrait'});
+  pages.forEach((c,i)=>{if(i)doc.addPage();doc.addImage(c.toDataURL('image/jpeg',q),'JPEG',0,0,pw,ph,undefined,'FAST')});
   saveFile('notebook.pdf',doc.output('blob'));
 });
 loadP().then(()=>{pstat();render()});
@@ -315,13 +349,9 @@ $('capture').addEventListener('click',()=>{
 window.addEventListener('pagehide',stopCamera);
 
 // Keep numeric controls readable while adjusting.
-[['fs','fsOut',' px'],['lh','lhOut',' px'],['jit','jitOut',''],['noise','noiseOut','']].forEach(([id,out,suffix])=>{
-  const el=$(id),target=$(out);const update=()=>target.textContent=el.value+suffix;el.addEventListener('input',update);update();
-});
-$('newNotebook').addEventListener('click',()=>{
-  if(!confirm('Start a new notebook? Export or copy your current text first if you need it.'))return;
-  $('txt').value='';['hn','hr','hs'].forEach(id=>$(id).value='');$('note').textContent='New notebook started.';render();
-});
+const OUTS=[['fs','fsOut',' px'],['lh','lhOut',' px'],['jit','jitOut',''],['noise','noiseOut','']];
+function syncOutputs(){OUTS.forEach(([id,out,suffix])=>{$(out).textContent=$(id).value+suffix})}
+OUTS.forEach(([id])=>$(id).addEventListener('input',syncOutputs));syncOutputs();
 
 
 // Project persistence, history, layout controls and offline study helpers.
@@ -329,7 +359,7 @@ const PROJECTS_KEY='nbs-projects-v1';
 let history=[],historyIndex=-1,historyTimer=null,saveTimer=null;
 function readProjects(){try{return JSON.parse(localStorage.getItem(PROJECTS_KEY)||'[]')}catch(e){return[]}}
 function writeProjects(items){try{localStorage.setItem(PROJECTS_KEY,JSON.stringify(items))}catch(e){$('saveStatus').textContent='Storage is full. Export your work or remove old projects.'}}
-function snapshot(){return {id:currentProject||('nb-'+Date.now()),name:currentProject?((readProjects().find(p=>p.id===currentProject)||{}).name||'My notebook'):'My notebook',text:$('txt').value,details:{name:$('hn').value,roll:$('hr').value,subject:$('hs').value,date:$('hd').value},settings:{font:$('font').value,ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:$('fs').value,lh:$('lh').value,jit:$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:$('noise').value,uq:$('uq').checked,paperSize:$('paperSize').value,orientation:$('orientation').value,marginPreset:$('marginPreset').value,footerMode:$('footerMode').value},updatedAt:Date.now()}}
+function snapshot(){return {id:currentProject||('nb-'+Date.now()),name:currentProject?((readProjects().find(p=>p.id===currentProject)||{}).name||'My notebook'):'My notebook',text:$('txt').value,details:{name:$('hn').value,roll:$('hr').value,subject:$('hs').value,date:$('hd').value},settings:{font:$('font').value,ink:$('ink').value,paper:$('paper').value,pc:$('pc').value,fs:$('fs').value,lh:$('lh').value,jit:$('jit').value,scan:$('scan').checked,gray:$('gray').checked,noise:$('noise').value,uq:$('uq').checked,paperSize:$('paperSize').value,orientation:$('orientation').value,marginPreset:$('marginPreset').value,footerMode:$('footerMode').value,headerToggle:$('headerToggle').checked},updatedAt:Date.now()}}
 function saveProject(show=true){
   const p=snapshot(),all=readProjects(),idx=all.findIndex(x=>x.id===p.id);
   if(idx>=0){p.name=all[idx].name;all[idx]=p}else{currentProject=p.id;all.unshift(p)}
@@ -341,12 +371,21 @@ function refreshProjectList(){
  all.forEach(p=>sel.add(new Option(p.name+' · '+new Date(p.updatedAt).toLocaleDateString(),p.id)));
  if(all.some(p=>p.id===old))sel.value=old;
 }
+const SETTING_TYPES={font:'select',ink:'select',paper:'select',pc:'color',fs:'range',lh:'range',jit:'range',scan:'check',gray:'check',noise:'range',uq:'check',paperSize:'select',orientation:'select',marginPreset:'select',footerMode:'select',headerToggle:'check'};
+function applySetting(k,v){
+ if(!Object.prototype.hasOwnProperty.call(SETTING_TYPES,k))return;
+ const el=$(k),kind=SETTING_TYPES[k];if(!el)return;
+ if(kind==='check')el.checked=!!v;
+ else if(kind==='select'){const s=String(v);if([...el.options].some(o=>o.value===s))el.value=s}
+ else if(kind==='color'){if(/^#[0-9a-f]{6}$/i.test(String(v)))el.value=String(v)}
+ else{const n=Number(v);if(Number.isFinite(n))el.value=n}
+}
 function loadProject(id){
  const p=readProjects().find(x=>x.id===id);if(!p)return;
- currentProject=p.id;$('txt').value=p.text||'';
- const d=p.details||{};[['hn','name'],['hr','roll'],['hs','subject'],['hd','date']].forEach(([id,k])=>$(id).value=d[k]||'');
- const s=p.settings||{};Object.entries(s).forEach(([k,v])=>{const el=$(k);if(el){if(el.type==='checkbox')el.checked=!!v;else el.value=v}});
- updatePageDimensions();render();$('saveStatus').textContent='Opened '+p.name;
+ currentProject=String(p.id);$('txt').value=String(p.text??'');
+ const d=p.details&&typeof p.details==='object'?p.details:{};[['hn','name'],['hr','roll'],['hs','subject'],['hd','date']].forEach(([id,k])=>$(id).value=String(d[k]??''));
+ const s=p.settings&&typeof p.settings==='object'?p.settings:{};Object.entries(s).forEach(([k,v])=>applySetting(k,v));
+ syncOutputs();updatePageDimensions();render();$('saveStatus').textContent='Opened '+p.name;
 }
 function rememberHistory(){
  const value=$('txt').value;if(history[historyIndex]===value)return;
@@ -358,9 +397,14 @@ function renderThumbs(){
  if(wrap.hidden)return;
  pages.forEach((p,i)=>{const b=document.createElement('button');b.className='thumb';const img=document.createElement('img');img.src=p.toDataURL('image/jpeg',.65);img.alt='Page '+(i+1);const label=document.createElement('span');label.textContent='Page '+(i+1);b.append(img,label);b.onclick=()=>p.scrollIntoView({behavior:'smooth',block:'center'});wrap.append(b)});
 }
+const PAPER_NAMES={a4:'A4',a5:'A5',letter:'Letter',legal:'Legal'};
+function updateMeta(){
+ const el=$('pageMeta');if(!el)return;
+ el.textContent=(PAPER_NAMES[$('paperSize').value]||'A4')+' · '+($('orientation').value==='landscape'?'Landscape':'Portrait')+' · '+Math.round(zoom*100)+'%';
+}
 function updatePageDimensions(){
  const sizes={a4:[794,1123],a5:[559,794],letter:[816,1056],legal:[816,1344]};
- let [w,h]=sizes[$('paperSize').value]||sizes.a4;if($('orientation').value==='landscape')[w,h]=[h,w];W=w;H=h;
+ let [w,h]=sizes[$('paperSize').value]||sizes.a4;if($('orientation').value==='landscape')[w,h]=[h,w];W=w;H=h;updateMeta();
 }
 function runStudyTool(){
  const text=$('txt').value.trim();if(!text){$('note').textContent='Add or import some text first.';return}
@@ -380,15 +424,18 @@ $('deleteProject').addEventListener('click',()=>{if(!currentProject)return alert
 $('runWritingTool').addEventListener('click',runStudyTool);
 $('undo').addEventListener('click',()=>applyHistory(historyIndex-1));
 $('redo').addEventListener('click',()=>applyHistory(historyIndex+1));
-$('zoomIn').addEventListener('click',()=>{zoom=Math.min(1.4,zoom+.1);render()});
-$('zoomOut').addEventListener('click',()=>{zoom=Math.max(.5,zoom-.1);render()});
+$('zoomIn').addEventListener('click',()=>{zoom=Math.min(1.4,Math.round((zoom+.1)*10)/10);applyZoom()});
+$('zoomOut').addEventListener('click',()=>{zoom=Math.max(.5,Math.round((zoom-.1)*10)/10);applyZoom()});
 $('showThumbs').addEventListener('change',renderThumbs);
 $('exportPng').addEventListener('click',()=>{if(!pages.length)return;pages[0].toBlob(b=>saveFile('notebook-page-1.png',b),'image/png')});
 ['paperSize','orientation','marginPreset','footerMode'].forEach(id=>$(id).addEventListener('change',()=>{updatePageDimensions();render();scheduleSave()}));
 $('txt').addEventListener('input',()=>{clearTimeout(historyTimer);historyTimer=setTimeout(()=>{rememberHistory();scheduleSave()},500)});
 ['hn','hr','hs','hd','font','ink','paper','pc','fs','lh','jit','scan','gray','noise','uq'].forEach(id=>$(id).addEventListener('change',scheduleSave));
 $('newNotebook').addEventListener('click',()=>{
- if($('txt').value.trim())saveProject(false);
+ if($('txt').value.trim()){
+  if(!confirm('Start a new notebook? Your current notebook will be saved on this device first.'))return;
+  saveProject(false);
+ }
  currentProject='';$('txt').value='';['hn','hr','hs','hd'].forEach(id=>$(id).value='');rememberHistory();render();$('saveStatus').textContent='New unsaved notebook';
 });
 updatePageDimensions();rememberHistory();refreshProjectList();
@@ -400,11 +447,17 @@ $('exportProfile').addEventListener('click',()=>{
 $('importProfile').addEventListener('change',async e=>{
  const f=e.target.files[0];if(!f)return;
  try{
-  const data=JSON.parse(await f.text());if(data.format!=='ai-notebook-studio-profile'||!data.glyphs)throw new Error('Invalid profile');
+  if(f.size>20e6)throw new Error('Too large');
+  const data=JSON.parse(await f.text());
+  if(!data||data.format!=='ai-notebook-studio-profile'||!data.glyphs||typeof data.glyphs!=='object'||Array.isArray(data.glyphs))throw new Error('Invalid profile');
+  const next={};
   for(const [key,arr] of Object.entries(data.glyphs)){
-   gl[key]=[];
-   for(const item of arr){const im=new Image();im.src=item.image;await im.decode();const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);gl[key].push({c,w:item.w,dy:item.dy})}
+   if(!GLYPH_KEYS.has(key)||!Array.isArray(arr))continue;
+   const list=await Promise.all(arr.slice(0,30).map(item=>glyphFrom(item&&item.image,item&&item.w,item&&item.dy)));
+   if(list.length)next[key]=list;
   }
+  if(!Object.keys(next).length)throw new Error('Empty profile');
+  Object.assign(gl,next);
   saveP();pstat();$('font').value='__mine';render();$('note').textContent='Handwriting profile imported.';
  }catch(err){$('note').textContent='Could not import this handwriting profile. Check that it is a valid exported profile.'}
  finally{e.target.value=''}
