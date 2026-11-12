@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#171230">
 <title>AI Notebook Studio</title>
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Caveat&family=Kalam&family=Patrick+Hand&family=Reenie+Beanie&family=Shadows+Into+Light&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Caveat&family=Kalam&family=Baloo+Bhai+2&family=Patrick+Hand&family=Reenie+Beanie&family=Shadows+Into+Light&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -37,7 +37,7 @@
       <button class="tab" data-group="mid" data-tab="ocr" role="tab" aria-selected="false">OCR</button>
     </div>
     <div class="pane" data-group="mid" data-pane="write">
-      <h3>Write or paste your notes</h3><p class="sub">Type in the editor below, or import a file. Undo and redo apply to your text.</p>
+      <h3>Write or paste your notes</h3><p class="sub">Type below or import a file. Start a line with <b>#</b> or <b>##</b> to make a highlighted heading. Undo and redo apply to your text.</p>
       <div class="two"><button id="undo">↶ Undo</button><button id="redo">↷ Redo</button></div>
     </div>
     <div class="pane" data-group="mid" data-pane="ai" hidden>
@@ -60,14 +60,15 @@
     <div class="pane" data-group="mid" data-pane="ocr" hidden>
       <h3>Read text from an image</h3>
       <label class="filebtn">◎ Import image and run OCR<input id="imgFile" type="file" accept="image/*" hidden></label>
+      <button id="phoneDocBtn">📱 Scan a document with your phone</button>
       <label>OCR language<select id="ocrLanguage"><option value="eng+hin+guj">English + Hindi + Gujarati</option><option value="eng">English</option><option value="hin">Hindi</option><option value="guj">Gujarati</option></select></label>
       <p class="sub">OCR can make mistakes. Check the text in the editor before exporting.</p>
     </div>
     <h3 class="edh">Content editor</h3>
-    <textarea id="txt" class="editor" aria-label="Content editor">Question 1: What is photosynthesis?
+    <textarea id="txt" class="editor" aria-label="Content editor"># Question 1: What is photosynthesis?
 Answer: Photosynthesis is the process by which green plants make food using sunlight, water and carbon dioxide.
 
-प्रश्न 2: यह हिंदी का एक उदाहरण है।
+## प्रश्न 2: यह हिंदी का एक उदाहरण है।
 उत्तर: हर शब्द थोड़ा अलग लिखा जाता है, जैसे असली हाथ की लिखावट।</textarea>
     <p class="sub">Words <b id="wordStat">0</b> · Pages (est.) <b id="estStat">–</b></p>
     <p class="sub" id="note" aria-live="polite"></p>
@@ -109,6 +110,7 @@ Answer: Photosynthesis is the process by which green plants make food using sunl
       </div>
       <label class="check"><input id="footerCheck" type="checkbox"> Footer (page number)</label>
       <label class="check"><input id="uq" type="checkbox" checked> Underline questions</label>
+      <label class="check"><input id="hlToggle" type="checkbox" checked> Highlight headings (# and ##)</label>
       <details class="acc"><summary>Ink &amp; writing style</summary>
         <label>Handwriting font<select id="font"><option>Caveat</option><option>Kalam</option><option>Patrick Hand</option><option>Reenie Beanie</option><option>Shadows Into Light</option></select></label>
         <label class="filebtn">+ Upload TTF / OTF font<input id="ffile" type="file" accept=".ttf,.otf,.woff,.woff2" hidden></label>
@@ -122,14 +124,16 @@ Answer: Photosynthesis is the process by which green plants make food using sunl
       <label>Scan texture <output id="noiseOut">8</output><input id="noise" type="range" min="0" max="30" value="8"></label>
       <details class="acc" id="exportAcc"><summary>Export settings</summary>
         <label>PDF quality<select id="q"><option value=".92">High quality</option><option value=".6">Compressed</option></select></label>
+        <label class="check"><input id="searchable" type="checkbox" checked> Searchable PDF (English text layer)</label>
         <button id="exportPng">Export first page as PNG</button>
       </details>
     </div>
     <div class="pane" data-group="side" data-pane="handwriting" hidden>
       <h3>Handwriting profile</h3>
-      <p class="sub">Print a character sheet, write on it, then scan it with your camera or upload a photo.</p>
+      <p class="sub">Print a character sheet, write on it, then scan it with your phone, this device's camera, or upload a photo.</p>
       <label>Handwriting script<select id="script"><option value="latin">English / Latin</option><option value="hindi">Hindi / Devanagari basic</option><option value="gujarati">Gujarati basic</option></select></label>
-      <div class="two"><button id="tpl">↓ Get template</button><button id="camera" class="accent">◎ Scan with camera</button></div>
+      <div class="two"><button id="tpl">↓ Get template</button><button id="phoneBtn" class="accent">📱 Scan with phone</button></div>
+      <button id="camera" class="quiet">◎ Use this device's camera</button>
       <label class="filebtn">↑ Upload handwriting sheet<input id="sheet" type="file" accept="image/*" hidden></label>
       <p id="pnote" class="sub" aria-live="polite">No personal handwriting profile yet.</p>
       <div class="two"><button id="exportProfile">Export profile</button><label class="filebtn">Import profile<input id="importProfile" type="file" accept=".json,application/json" hidden></label></div>
@@ -157,7 +161,17 @@ Answer: Photosynthesis is the process by which green plants make food using sunl
   <div class="modal-card"><div class="mh"><h2 id="pmTitle">My notebooks</h2><button class="icon" data-close aria-label="Close">×</button></div>
     <label>Saved projects<select id="projectList"><option value="">No saved projects yet</option></select></label>
     <div class="two"><button id="duplicateProject">Duplicate</button><button id="deleteProject" class="quiet">Delete</button></div>
-    <p class="sub">Notebooks are saved in this browser only. Choose one to open it.</p>
+    <div class="two"><button id="backupAll">↓ Backup everything</button><label class="filebtn">↑ Restore backup<input id="restoreAll" type="file" accept=".json,application/json" hidden></label></div>
+    <p class="sub">Notebooks are saved in this browser only. Use Backup to keep a copy of all notebooks and your handwriting profile, or to move them to another computer.</p>
+  </div>
+</div>
+
+<div class="modal" id="phoneModal" role="dialog" aria-modal="true" aria-labelledby="phTitle" aria-hidden="true">
+  <div class="modal-card"><div class="mh"><div><h2 id="phTitle">Scan with your phone</h2><p class="sub">Scan this QR code with your phone's camera. Photos you take will arrive here directly.</p></div><button class="icon" data-close aria-label="Close">×</button></div>
+    <div id="qr" class="qr"></div>
+    <div class="linkrow"><input id="phoneLink" type="text" readonly aria-label="Link to open on your phone"><button id="copyLink">Copy</button></div>
+    <p class="sub" id="phoneStatus" aria-live="polite">Preparing…</p>
+    <p class="sub">Your phone and computer connect directly (peer-to-peer). A free public relay is used only to introduce the two devices; photos are not stored on any server. Both devices need internet. If they do not connect, try the same Wi-Fi.</p>
   </div>
 </div>
 
@@ -168,7 +182,20 @@ Answer: Photosynthesis is the process by which green plants make food using sunl
     <div class="two"><button id="switchCamera">↻ Switch camera</button><button id="capture" class="cta">◎ Capture sheet</button></div>
   </div>
 </div>
+
+<section id="phoneView" hidden aria-label="Phone scanner">
+  <h2>Scan with your phone</h2>
+  <p class="sub" id="pvStatus" aria-live="polite">Connecting to your computer…</p>
+  <label>What are you sending?<select id="pvKind"><option value="sheet">Handwriting sheet</option><option value="doc">Document (read text with OCR)</option></select></label>
+  <p class="sub" id="pvScript"></p>
+  <div class="camera-stage" id="pvCam" hidden><video id="pvVideo" autoplay playsinline muted></video><div class="scan-guide" id="pvGuide"><span>Fit the sheet inside the frame</span></div></div>
+  <button id="pvStart" class="cta">Start camera</button>
+  <div class="two"><button id="pvSwitch">↻ Switch camera</button><button id="pvSend" class="cta" disabled>◎ Capture &amp; send</button></div>
+  <label class="filebtn">Take photo with camera app / choose a photo<input id="pvFile" type="file" accept="image/*" capture="environment" hidden></label>
+  <p class="sub">Tips: for handwriting sheets use the live camera and hold the phone sideways. Use bright, even light and keep the paper flat. Keep this page open while sending.</p>
+</section>
 <script src="app.js"></script>
 <script src="ui.js"></script>
+<script src="phone.js"></script>
 </body>
 </html>
