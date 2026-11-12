@@ -12,6 +12,7 @@ if(hash)phoneSide(hash[1]);else laptopSide();
 
 function laptopSide(){
   loadScript('scan.js').catch(()=>{});
+  loadScript('profile.js').catch(()=>{});
   const modal=$('phoneModal');let peer=null,peerId=null;
   const st=t=>{$('phoneStatus').textContent=t};
   function open(){modal.classList.add('open');modal.setAttribute('aria-hidden','false');start()}
