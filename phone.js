@@ -11,6 +11,7 @@ const hash=location.hash.match(/^#phone=([A-Za-z0-9_-]{8,64})$/);
 if(hash)phoneSide(hash[1]);else laptopSide();
 
 function laptopSide(){
+  loadScript('scan.js').catch(()=>{});
   const modal=$('phoneModal');let peer=null,peerId=null;
   const st=t=>{$('phoneStatus').textContent=t};
   function open(){modal.classList.add('open');modal.setAttribute('aria-hidden','false');start()}
@@ -63,8 +64,15 @@ function laptopSide(){
         saveP();pstat();$('font').value='__mine';fire($('font'),'change');render();
         st('Handwriting sheet added to your profile. Send another sheet for more variety.');
         c.send({ack:true,text:'Sheet received and added to your profile.'});
+      }else if(window.NBScan){
+        // Document photo: clean it first, then read it. Check the cleaned page in the OCR tab.
+        const text=(await window.NBScan.readBlobs([blob])).trim();
+        if(!text)throw new Error('empty');
+        const box=$('txt');box.value=(box.value.trim()?box.value.replace(/\s+$/,'')+'\n\n':'')+text;fire(box,'input');render();
+        st('Text from your phone photo was added to the editor. Please check it for mistakes.');
+        c.send({ack:true,text:'Document received. Text added on your computer.'});
       }else{
-        const w=await Tesseract.createWorker($('ocrLanguage').value);
+        const w=await Tesseract.createWorker('eng');
         let text='';
         try{text=(await w.recognize(blob)).data.text.trim()}finally{await w.terminate()}
         const box=$('txt');box.value=(box.value.trim()?box.value.replace(/\s+$/,'')+'\n':'')+text;fire(box,'input');render();
